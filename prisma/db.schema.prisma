@@ -1,0 +1,315 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/db-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User 테이블 스키마
+model User {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  createdAt  DateTime @default(now())
+  createUser String   @default("system")
+  updatedAt  DateTime @default(now()) @updatedAt
+  updateUser String   @default("system")
+  lastLogin  DateTime @default(now())
+
+  // Relations
+  userVirtualMachines      UserVirtualMachineMapping[]
+  createdTestCases         TestCase[]                  @relation("TestCaseCreator")
+  executedTestCases        TestCase[]                  @relation("TestCaseExecutor")
+  updatedTestCases         TestCase[]                  @relation("TestCaseUpdater")
+  createdStepCases         StepCase[]                  @relation("StepCaseCreator")
+  updatedStepCases         StepCase[]                  @relation("StepCaseUpdater")
+  createdScriptFiles       ScriptFile[]                @relation("ScriptFileCreator")
+  updatedScriptFiles       ScriptFile[]                @relation("ScriptFileUpdater")
+  createdVirtualMachines   VirtualMachine[]            @relation("VirtualMachineCreator")
+  updatedVirtualMachines   VirtualMachine[]            @relation("VirtualMachineUpdater")
+  createdUserVMMappings    UserVirtualMachineMapping[] @relation("UserVMCreator")
+  createdCommonFiles       CommonFile[]                @relation("CommonFileCreator")
+  updatedCommonFiles       CommonFile[]                @relation("CommonFileUpdater")
+  executedTestCaseExecutes TestCaseExecute[]           @relation("TestCaseExecutor")
+  createdStepLogs          StepLog[]                   @relation("StepLogCreator")
+  Rag                      Rag[]                       @relation("RagUploader")
+}
+
+// TestCase 테이블 스키마
+model TestCase {
+  id           String         @id @default(cuid())
+  description  String         @db.VarChar(255)
+  title        String?        @db.VarChar(100)
+  createdAt    DateTime       @default(now())
+  createUser   String
+  executedAt   DateTime?
+  executedUser String?
+  updatedAt    DateTime?
+  updateUser   String?
+  status       TestCaseStatus @default(PENDING)
+  width        Int            @default(1280)
+  height       Int            @default(720)
+  url          String?
+  tags         String[]       @default([])
+  from         TestCaseFrom   @default(MANUAL)
+
+  // Relations
+  creator           User                @relation("TestCaseCreator", fields: [createUser], references: [id])
+  executor          User?               @relation("TestCaseExecutor", fields: [executedUser], references: [id])
+  updater           User?               @relation("TestCaseUpdater", fields: [updateUser], references: [id])
+  stepCases         StepCase[]
+  scriptFiles       ScriptFile[]
+  testCaseExecutes  TestCaseExecute[]
+  testCaseVideoFile TestCaseVideoFile[]
+  stepLogs          StepLog[]           @relation("StepLogTestCase")
+}
+
+model TestCaseExecute {
+  id           String   @id @default(cuid())
+  testCaseId   String
+  executedAt   DateTime @default(now())
+  executedUser String
+  status       String
+  result       String?
+
+  // Relations
+  testCase          TestCase           @relation(fields: [testCaseId], references: [id])
+  executor          User?              @relation("TestCaseExecutor", fields: [executedUser], references: [id])
+  testCaseVideoFile TestCaseVideoFile?
+  stepLogs          StepLog[]          @relation("StepLogTestCaseExecute")
+}
+
+// StepCase 테이블 스키마
+model StepCase {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  createdAt    DateTime @default(now())
+  createUser   String
+  updatedAt    DateTime @updatedAt
+  updateUser   String
+  eventType    String
+  originScript String
+  script       String
+  testCaseId   String
+  orderIndex   Int      @default(0)
+
+  // Relations
+  creator  User      @relation("StepCaseCreator", fields: [createUser], references: [id])
+  updater  User      @relation("StepCaseUpdater", fields: [updateUser], references: [id])
+  testCase TestCase? @relation(fields: [testCaseId], references: [id])
+  stepLogs StepLog[] @relation("StepLogStepCase")
+}
+
+// stepCase 테이블에 insert 후 삭제할 임시 테이블
+model TempStepCase {
+  id             String   @id @default(cuid())
+  title          String?
+  script         String?
+  createdAt      DateTime @default(now())
+  createUser     String
+  eventType      String
+  tempTestCaseId String
+  isDeleted      Boolean  @default(false)
+  orderIndex     Int      @default(0)
+}
+
+// ScriptFile 테이블 스키마
+model ScriptFile {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  createUser String
+  updatedAt  DateTime @updatedAt
+  updateUser String
+  testCaseId String
+  savedName  String
+  originName String
+  path       String   @default("/files/specFile")
+
+  // Relations
+  creator  User      @relation("ScriptFileCreator", fields: [createUser], references: [id])
+  updater  User      @relation("ScriptFileUpdater", fields: [updateUser], references: [id])
+  testCase TestCase? @relation(fields: [testCaseId], references: [id])
+}
+
+// testcase video file
+model TestCaseVideoFile {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  createUser        String
+  testCaseId        String
+  savedName         String
+  originName        String
+  path              String
+  testCaseExecuteId String   @unique
+
+  // Relations
+  testCase        TestCase?        @relation(fields: [testCaseId], references: [id])
+  testCaseExecute TestCaseExecute? @relation(fields: [testCaseExecuteId], references: [id])
+}
+
+// 사용자별 VM Info 테이블 스키마
+model UserVirtualMachineMapping {
+  id         String   @id @default(cuid())
+  mapping    String
+  userId     String
+  vmId       String
+  createdAt  DateTime @default(now())
+  createUser String
+
+  // Relations
+  user           User           @relation(fields: [userId], references: [id])
+  virtualMachine VirtualMachine @relation(fields: [vmId], references: [id])
+  creator        User           @relation("UserVMCreator", fields: [createUser], references: [id])
+}
+
+// VM 메인 테이블 스키마
+model VirtualMachine {
+  id         String   @id @default(cuid())
+  useYN      Boolean
+  connectUrl String
+  createdAt  DateTime @default(now())
+  createUser String
+  updatedAt  DateTime @updatedAt
+  updateUser String
+
+  // Relations
+  creator                    User                        @relation("VirtualMachineCreator", fields: [createUser], references: [id])
+  updater                    User                        @relation("VirtualMachineUpdater", fields: [updateUser], references: [id])
+  userVirtualMachineMappings UserVirtualMachineMapping[]
+}
+
+// CommonFile 테이블 스키마
+model CommonFile {
+  id             String   @id @default(cuid())
+  originalName   String // 원본 파일명
+  fileName       String // 저장된 파일명
+  filePath       String // 파일 저장 경로
+  fileSize       Int // 파일 크기 (bytes)
+  description    String? // 파일 설명
+  tempTestCaseId String? // tempTestCaseId (임시 테스트 케이스 ID)
+  createdAt      DateTime @default(now())
+  createUser     String
+  updatedAt      DateTime @updatedAt
+  updateUser     String
+
+  // Relations
+  creator User @relation("CommonFileCreator", fields: [createUser], references: [id])
+  updater User @relation("CommonFileUpdater", fields: [updateUser], references: [id])
+
+  @@map("file")
+}
+
+// 스텝 로그 테이블 스키마
+// 1:N (스탭 : 스텝로그) - 옵셔널
+// 1:N (테스트케이스 : 스텝로그) - 옵셔널
+// 1:N (테스트케이스 실행내역 : 스텝로그) - 옵셔널
+model StepLog {
+  id                String   @id @default(cuid())
+  stepCaseId        String
+  testCaseId        String
+  testCaseExecuteId String
+  script            String
+  details           String?
+  createdAt         DateTime @default(now())
+  createUser        String
+  stepIndex         Int
+
+  // Relations (모두 옵셔널 관계)
+  stepCase        StepCase?        @relation("StepLogStepCase", fields: [stepCaseId], references: [id])
+  testCase        TestCase?        @relation("StepLogTestCase", fields: [testCaseId], references: [id])
+  testCaseExecute TestCaseExecute? @relation("StepLogTestCaseExecute", fields: [testCaseExecuteId], references: [id])
+  creator         User?            @relation("StepLogCreator", fields: [createUser], references: [id])
+}
+
+// 커넥션 관리용 테이블
+model ConnectionManagement {
+  id              String    @id @default(cuid())
+  connectionId    Int       @unique
+  connectionName  String
+  connectionEndAt DateTime?
+  useYN           Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime?
+  updatedBy       String?
+  displayNumber   Int
+  testCaseId      String?
+  user            String?
+}
+
+//------------------------ langGraph ------------------------//
+
+// LangGraph Thread 매핑 테이블
+model LangGraphThread {
+  id                 String   @id @default(cuid())
+  aggregatorThreadId String
+  aiBuilderThreadId  String
+  userId             String
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+}
+
+// RAG 파일 정보 테이블
+model RagFile {
+  id            String   @id @default(cuid())
+  fileName      String   @db.VarChar(100)
+  fileSavedName String
+  filePath      String
+  fileSize      Int
+  createdAt     DateTime @default(now())
+
+  // Relations
+  rag Rag? // 1:1
+}
+
+model Rag {
+  id            String         @id @default(cuid())
+  trackId       String?
+  documentId    String?
+  fileId        String         @unique // 1:1 unique
+  createdAt     DateTime       @default(now())
+  ragStatus     DocumentStatus @default(pending)
+  uploader      String
+  checkCount    Int            @default(0) // 상태 확인 횟수
+  lastCheckedAt DateTime? // 마지막 확인 시각
+  errorMsg      String?        @db.VarChar(500)
+
+  // Relations
+  ragFile    RagFile @relation(fields: [fileId], references: [id])
+  uploadedBy User    @relation("RagUploader", fields: [uploader], references: [id])
+}
+
+//------------------------ Enums ------------------------//
+
+// TestCase 상태 enum
+enum TestCaseStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  ERROR
+}
+
+// TestCase from enum
+enum TestCaseFrom {
+  MANUAL
+  AI_GENERATED
+}
+
+enum DocumentStatus {
+  pending
+  processing
+  preprocessed
+  processed
+  failed
+  uploadFailed
+  duplicated
+}

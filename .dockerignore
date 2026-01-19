@@ -1,0 +1,82 @@
+# =============================================================================
+# .dockerignore - Docker 빌드 시 제외할 파일/폴더
+# =============================================================================
+
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist
+build
+.next
+
+# Environment files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Testing
+coverage
+.nyc_output
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary folders
+tmp
+temp
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Development files
+README.md
+.github
+*.md
+
+# Prisma dev files (keep schema and migrations)
+# But exclude generated files from source
+prisma/generated
+
+# Test files
+test
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# ESLint
+.eslintcache
